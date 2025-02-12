@@ -1,0 +1,8 @@
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("{{name}}")
+
+@mcp.tool()
+def echo_tool(message: str) -> str:
+    """Echo a message as a tool"""
+    return f"Tool echo: {message}"

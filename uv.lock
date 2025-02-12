@@ -286,10 +286,14 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "mcp", extra = ["cli"] },
+    { name = "python-dotenv" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "mcp", extras = ["cli"], specifier = ">=1.2.1" }]
+requires-dist = [
+    { name = "mcp", extras = ["cli"], specifier = ">=1.2.1" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+]
 
 [[package]]
 name = "typer"
