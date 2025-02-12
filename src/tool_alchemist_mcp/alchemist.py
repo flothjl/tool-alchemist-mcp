@@ -40,7 +40,6 @@ class Alchemist:
 
         # Step 1: Create boilerplate in the data path
         tool_path = self.data_path.joinpath(name_in_kebab_case)
-        tool_path.mkdir(parents=True, exist_ok=True)
 
         # Step 2: Create the package
         command = [
@@ -49,21 +48,28 @@ class Alchemist:
             "--package",
             "--description",
             description or name,
-            name_in_kebab_case,
+            "--vcs",
+            "none",
+            tool_path,
         ]
         subprocess.run(command, check=True)
 
         # Step 3: Create and render template for server.py
         server_file_path = tool_path.joinpath("src", name_in_snake_case, "server.py")
-        server_file_path.parent.mkdir(parents=True, exist_ok=True)
+        init_file_path = tool_path.joinpath("src", name_in_snake_case, "__init__.py")
 
         # Load and render the Jinja2 template
-        template = self.template_env.get_template("tool.py.jinja")
-        rendered_code = template.render(name=name)
+        tool = self.template_env.get_template("tool.py.j2")
+        tool_code = tool.render(name=name, name_in_snake_case=name_in_snake_case)
+
+        init = self.template_env.get_template("init.py.j2")
+        init_code = init.render(name_in_snake_case=name_in_snake_case)
 
         # Write the rendered code to server.py
-        with open(server_file_path, "w") as f:
-            f.write(rendered_code)
+        with open(server_file_path, "w+") as f:
+            f.write(tool_code)
+        with open(init_file_path, "w+") as f:
+            f.write(init_code)
 
         print(f"Successfully created tool '{name}' at {tool_path}")
 
