@@ -3,6 +3,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from typing import List
 
 import yaml
 from jinja2 import Environment, FileSystemLoader
@@ -74,6 +75,11 @@ class Alchemist:
 
         with open(self.goose_config_path, "w+") as file:
             yaml.dump(current_config, file, sort_keys=False)
+
+    def add_dependency(self, name: str, deps: List[str]) -> None:
+        tool_path = self.get_tool_root_path(name)
+        cmd = ["uv", "add", *deps, "--project", str(tool_path)]
+        self._run_command(cmd)
 
     def create_new_tool(self, name: str, description: str | None = None) -> Path:
         self._check_uv_installed()
