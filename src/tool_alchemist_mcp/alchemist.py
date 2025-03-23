@@ -26,32 +26,6 @@ class ValidationError(Exception):
     pass
 
 
-def to_snake_case(val: str) -> str:
-    """
-    Convert a string to snake_case format.
-    
-    Args:
-        val: The string to convert
-        
-    Returns:
-        The snake_case formatted string
-    """
-    return re.sub(r"[\s\-]+", "_", val.strip()).lower()
-
-
-def to_kebob_case(val: str) -> str:
-    """
-    Convert a string to kebob-case format.
-    
-    Args:
-        val: The string to convert
-        
-    Returns:
-        The kebob-case formatted string
-    """
-    return re.sub(r"[\s_]+", "-", val.strip()).lower()
-
-
 class Alchemist:
     """
     A class to create and manage Goose extensions/tools.
@@ -60,6 +34,52 @@ class Alchemist:
     manage their configuration in Goose, and handle dependencies.
     It uses the UV package manager for project creation and dependency management.
     """
+    
+    @staticmethod
+    def to_snake_case(val: str) -> str:
+        """
+        Convert a string to snake_case format.
+        
+        Args:
+            val: The string to convert
+            
+        Returns:
+            The snake_case formatted string
+        """
+        return re.sub(r"[\s\-]+", "_", val.strip()).lower()
+    
+    @staticmethod
+    def to_kebob_case(val: str) -> str:
+        """
+        Convert a string to kebob-case format.
+        
+        Args:
+            val: The string to convert
+            
+        Returns:
+            The kebob-case formatted string
+        """
+        return re.sub(r"[\s_]+", "-", val.strip()).lower()
+    
+    @staticmethod
+    def validate_tool_name(name: str) -> bool:
+        """
+        Validate that a tool name contains only allowed characters.
+        
+        Args:
+            name: The name to validate
+            
+        Returns:
+            True if the name is valid
+            
+        Raises:
+            ValidationError: If the name contains invalid characters
+        """
+        if not name or not re.match(r"^[a-zA-Z0-9 _-]+$", name):
+            raise ValidationError(
+                "Tool name must contain only letters, numbers, spaces, underscores, and hyphens"
+            )
+        return True
     
     def __init__(
         self,
@@ -79,10 +99,10 @@ class Alchemist:
         """
         # Use injected value, then environment variable, then default
         self.data_path = data_path or Path(
-            os.getenv("TOOL_ALCHEMIST_MCP_DATA_PATH", DEFAULT_ALCHEMY_MCP_PATH)
+            os.getenv("TOOL_ALCHEMIST_MCP_DATA_PATH", str(DEFAULT_ALCHEMY_MCP_PATH))
         )
         self.goose_config_path = goose_config_path or Path(
-            os.getenv("TOOL_ALCHEMIST_MCP_GOOSE_CONFIG_PATH", DEFAULT_GOOSE_CONFIG_PATH)
+            os.getenv("TOOL_ALCHEMIST_MCP_GOOSE_CONFIG_PATH", str(DEFAULT_GOOSE_CONFIG_PATH))
         )
 
         # Jinja2 environment setup
@@ -98,7 +118,7 @@ class Alchemist:
         Returns:
             Path object for the tool's root directory
         """
-        tool_path = self.data_path.joinpath(to_kebob_case(name))
+        tool_path = self.data_path.joinpath(self.to_kebob_case(name))
         return tool_path
 
     def get_tool_server_path(self, name: str) -> Path:
@@ -112,7 +132,7 @@ class Alchemist:
             Path object for the tool's server.py file
         """
         return self.get_tool_root_path(name).joinpath(
-            "src", to_snake_case(name), SERVER_FILE_NAME
+            "src", self.to_snake_case(name), SERVER_FILE_NAME
         )
 
     def add_tool_to_config(self, name: str) -> None:
@@ -123,10 +143,12 @@ class Alchemist:
             name: The name of the tool to add
         
         Raises:
+            ValidationError: If the tool name is invalid
             IOError: If there are issues reading or writing the config file
         """
+        self.validate_tool_name(name)
         tool_path = self.get_tool_root_path(name)
-        tool_name_kebab = to_kebob_case(name)
+        tool_name_kebab = self.to_kebob_case(name)
 
         try:
             with open(self.goose_config_path, "r") as file:
@@ -160,9 +182,11 @@ class Alchemist:
             deps: List of dependency names to add
             
         Raises:
+            ValidationError: If the tool name is invalid
             UVCommandNotFound: If UV is not installed
             subprocess.SubprocessError: If the UV command fails
         """
+        self.validate_tool_name(name)
         self._check_uv_installed()
         tool_path = self.get_tool_root_path(name)
         cmd = ["uv", "add", *deps, "--project", str(tool_path)]
@@ -183,13 +207,15 @@ class Alchemist:
             Path to the created tool directory
             
         Raises:
+            ValidationError: If the tool name is invalid
             UVCommandNotFound: If UV is not installed
             subprocess.SubprocessError: If the tool creation fails
             IOError: If there are issues writing the template files
         """
+        self.validate_tool_name(name)
         self._check_uv_installed()
-        name_in_kebab_case = to_kebob_case(name)
-        name_in_snake_case = to_snake_case(name)
+        name_in_kebab_case = self.to_kebob_case(name)
+        name_in_snake_case = self.to_snake_case(name)
 
         tool_path = self.data_path.joinpath(name_in_kebab_case)
         self._uv_create(name, tool_path, description)
@@ -260,6 +286,9 @@ class Alchemist:
         Raises:
             subprocess.SubprocessError: If the UV commands fail
         """
+        # Create the directory if it doesn't exist
+        tool_path.parent.mkdir(parents=True, exist_ok=True)
+        
         command = [
             "uv",
             "init",
@@ -275,5 +304,8 @@ class Alchemist:
 
 
 if __name__ == "__main__":
+    # Example usage
     alchemist = Alchemist()
-    print(alchemist.add_tool_to_config("my-tool"))
+    print(f"Tool Alchemist initialized with data path: {alchemist.data_path}")
+    print(f"Goose config path: {alchemist.goose_config_path}")
+    print("To create a new tool, use: alchemist.create_new_tool('tool-name', 'description')")
