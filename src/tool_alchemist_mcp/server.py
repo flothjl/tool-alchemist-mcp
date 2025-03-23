@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
-from mcp.types import ErrorData
+from mcp.shared.exceptions import McpError
+from mcp.types import INTERNAL_ERROR, ErrorData
 from pydantic import BaseModel, Field
 
 from tool_alchemist_mcp.alchemist import Alchemist, ValidationError
@@ -25,9 +26,11 @@ def build_boilerplate(name: ToolName) -> Path:
         alchemist.add_tool_to_config(name.val)
         return tool_path
     except ValidationError as e:
-        mcp.error(ErrorData(message=str(e)))
+        raise McpError(ErrorData(message=str(e), code=INTERNAL_ERROR))
     except Exception as e:
-        mcp.error(ErrorData(message=f"Failed to create tool: {str(e)}"))
+        raise McpError(
+            ErrorData(message=f"Failed to create tool: {str(e)}", code=INTERNAL_ERROR)
+        )
 
 
 class GetToolPathResponse(BaseModel):
@@ -43,6 +46,8 @@ def get_tool_path(tool_name: ToolName):
         server = alchemist.get_tool_server_path(tool_name.val)
         return GetToolPathResponse(root_path=root, server_path=server)
     except ValidationError as e:
-        mcp.error(ErrorData(message=str(e)))
+        raise McpError(ErrorData(message=str(e), code=INTERNAL_ERROR))
     except Exception as e:
-        mcp.error(ErrorData(message=f"Failed to get tool path: {str(e)}"))
+        raise McpError(
+            ErrorData(message=f"Failed to get tool path: {str(e)}", code=INTERNAL_ERROR)
+        )
