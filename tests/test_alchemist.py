@@ -12,8 +12,7 @@ from tool_alchemist_mcp.alchemist import (
     TEMPLATE_PATH,
     Alchemist,
     UVCommandNotFound,
-    to_kebob_case,
-    to_snake_case,
+    ValidationError,
 )
 
 
@@ -63,7 +62,7 @@ class AlchemistTestable(Alchemist):
         name: str,
         tool_path: Path,
         description: str | None = None,
-    ):
+    ) -> None:
         tool_path.mkdir(parents=True, exist_ok=True)
 
         (tool_path / "pyproject.toml").write_text(
@@ -71,8 +70,8 @@ class AlchemistTestable(Alchemist):
         )
 
         (tool_path / "src").mkdir()
-        (tool_path / "src" / to_snake_case(name)).mkdir()
-        (tool_path / "src" / to_snake_case(name) / "server.py").touch()
+        (tool_path / "src" / self.to_snake_case(name)).mkdir()
+        (tool_path / "src" / self.to_snake_case(name) / "server.py").touch()
         print_directory_tree(tool_path)
 
 
@@ -160,6 +159,43 @@ def test_get_tool_server_path(alchemist):
     server_path = alchemist.get_tool_server_path(tool_name)
     expected = alchemist.data_path / "mytool" / "src" / "mytool" / "server.py"
     assert server_path == expected
+
+
+def test_validate_tool_name_valid():
+    """Test that validate_tool_name accepts valid names"""
+    alch = Alchemist()
+    assert alch.validate_tool_name("valid-name") is True
+    assert alch.validate_tool_name("valid_name") is True
+    assert alch.validate_tool_name("Valid Name 123") is True
+
+
+def test_validate_tool_name_invalid():
+    """Test that validate_tool_name rejects invalid names"""
+    alch = Alchemist()
+    with pytest.raises(ValidationError):
+        alch.validate_tool_name("invalid@name")
+    with pytest.raises(ValidationError):
+        alch.validate_tool_name("")
+    with pytest.raises(ValidationError):
+        alch.validate_tool_name("name with $ symbol")
+
+
+def test_to_snake_case():
+    """Test the to_snake_case static method"""
+    alch = Alchemist()
+    assert alch.to_snake_case("Hello World") == "hello_world"
+    assert alch.to_snake_case("hello-world") == "hello_world"
+    assert alch.to_snake_case("Hello-World") == "hello_world"
+    assert alch.to_snake_case(" Spaces  Around ") == "spaces_around"
+
+
+def test_to_kebob_case():
+    """Test the to_kebob_case static method"""
+    alch = Alchemist()
+    assert alch.to_kebob_case("Hello World") == "hello-world"
+    assert alch.to_kebob_case("hello_world") == "hello-world"
+    assert alch.to_kebob_case("Hello_World") == "hello-world"
+    assert alch.to_kebob_case(" Spaces  Around ") == "spaces-around"
 
 
 def test_add_tool_to_config(alchemist):
